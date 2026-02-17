@@ -1,0 +1,8 @@
+# Currently using Python==3.11
+# Same setup : conda create -n bmo python==3.11
+
+fastapi
+uvicorn[standard]
+python-dotenv
+httpx
+python-multipart
