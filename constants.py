@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
 
@@ -54,6 +55,13 @@ def _get_path(name: str, default: str) -> Path:
     return path
 
 
+def _get_choice(name: str, default: str, allowed: set[str]) -> str:
+    value = os.getenv(name, default).strip().lower()
+    if value in allowed:
+        return value
+    return default
+
+
 class Settings:
     def __init__(self) -> None:
         self.APP_NAME = os.getenv("APP_NAME", "BMO System")
@@ -65,12 +73,12 @@ class Settings:
         self.ROOT_ROUTE = _normalize_route_prefix(os.getenv("ROOT_ROUTE", "/"), "/")
         self.ROOT_HEALTH_ROUTE = _normalize_route_prefix(os.getenv("ROOT_HEALTH_ROUTE", "/health"), "/health")
 
-        self.ASSETS_DIR = _get_path("ASSETS_DIR", "Assets")
-        self.ASSETS_UPLOADS_DIR = _get_path("ASSETS_UPLOADS_DIR", "Assets/uploads")
-        self.ASSETS_STT_DIR = _get_path("ASSETS_STT_DIR", "Assets/stt")
-        self.ASSETS_CV_DIR = _get_path("ASSETS_CV_DIR", "Assets/cv")
-        self.ASSETS_TTS_DIR = _get_path("ASSETS_TTS_DIR", "Assets/tts")
-        self.ASSETS_LLM_DIR = _get_path("ASSETS_LLM_DIR", "Assets/llm")
+        self.ASSETS_DIR = _get_path("ASSETS_DIR", ".")
+        self.ASSETS_UPLOADS_DIR = _get_path("ASSETS_UPLOADS_DIR", "STT/assets/uploads")
+        self.ASSETS_STT_DIR = _get_path("ASSETS_STT_DIR", "STT/assets")
+        self.ASSETS_CV_DIR = _get_path("ASSETS_CV_DIR", "CV/assets")
+        self.ASSETS_TTS_DIR = _get_path("ASSETS_TTS_DIR", "TTS/assets")
+        self.ASSETS_LLM_DIR = _get_path("ASSETS_LLM_DIR", "LLM/assets")
 
         self.STT_ROUTE_PREFIX = _normalize_route_prefix(os.getenv("STT_ROUTE_PREFIX", "/stt"), "/stt")
         self.STT_HEALTH_ROUTE = _normalize_route_prefix(os.getenv("STT_HEALTH_ROUTE", "/health"), "/health")
@@ -118,6 +126,29 @@ class Settings:
         self.TTS_OUTPUT_FORMAT = os.getenv("TTS_OUTPUT_FORMAT", "mp3")
         self.TTS_USE_REMOTE = _get_bool("TTS_USE_REMOTE", False)
         self.TTS_ENDPOINT = os.getenv("TTS_ENDPOINT", "/audio/speech")
+        self.TTS_LOCAL_ENABLED = _get_bool("TTS_LOCAL_ENABLED", True)
+        self.TTS_LOCAL_DEFAULT_TEXT = os.getenv(
+            "TTS_LOCAL_DEFAULT_TEXT",
+            "BMO says: Adventure time! Let's explore and have fun.",
+        )
+        self.TTS_LOCAL_DEFAULT_MODE: Literal["small", "medium", "large"] = _get_choice(
+            "TTS_LOCAL_DEFAULT_MODE",
+            "small",
+            {"small", "medium", "large"},
+        )
+        self.TTS_LOCAL_PIPER_MODEL = os.getenv("TTS_LOCAL_PIPER_MODEL", "en_US-lessac-medium")
+        self.TTS_LOCAL_PIPER_DOWNLOAD_DIR = _get_path("TTS_LOCAL_PIPER_DOWNLOAD_DIR", "TTS/assets/piper")
+        self.TTS_LOCAL_TMP_DIR = _get_path("TTS_LOCAL_TMP_DIR", "TTS/assets/tmp")
+        self.TTS_LOCAL_OUT_DIR = _get_path("TTS_LOCAL_OUT_DIR", "TTS/assets/out")
+        self.TTS_LOCAL_KEEP_TMP = _get_bool("TTS_LOCAL_KEEP_TMP", False)
+        self.TTS_LOCAL_USE_WARM_ENGINE = _get_bool("TTS_LOCAL_USE_WARM_ENGINE", True)
+        self.TTS_LOCAL_PRIME_ON_PREWARM = _get_bool("TTS_LOCAL_PRIME_ON_PREWARM", True)
+        self.TTS_RVC_MODEL_PATH = _get_path("TTS_RVC_MODEL_PATH", "TTS/weights/BMO.pth")
+        self.TTS_RVC_INDEX_PATH = _get_path(
+            "TTS_RVC_INDEX_PATH",
+            "TTS/weights/added_IVF548_Flat_nprobe_1_BMO_v2.index",
+        )
+        self.TTS_RVC_DEVICE = os.getenv("TTS_RVC_DEVICE", "cpu")
 
         self.GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
         self.GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
@@ -131,6 +162,9 @@ class Settings:
             self.ASSETS_CV_DIR,
             self.ASSETS_TTS_DIR,
             self.ASSETS_LLM_DIR,
+            self.TTS_LOCAL_PIPER_DOWNLOAD_DIR,
+            self.TTS_LOCAL_TMP_DIR,
+            self.TTS_LOCAL_OUT_DIR,
         ):
             path.mkdir(parents=True, exist_ok=True)
 

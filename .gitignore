@@ -2,3 +2,33 @@
 **/__pycache__/
 *.pyc
 .venv/
+
+# Python/cache artifacts
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local envs
+venv/
+env/
+
+# TTS generated/runtime assets (both legacy and current paths)
+TTS/assets/piper/
+TTS/assets/tmp/
+TTS/assets/out/
+Assets/tts/piper/
+Assets/tts/tmp/
+Assets/tts/out/
+
+# Large local model weights and indexes
+TTS/weights/
+*.onnx
+*.pth
+*.index
+*.pt
+*.bin
+*.ckpt
+*.safetensors
