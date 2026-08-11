@@ -1,5 +1,13 @@
 # BMO
 
+BMO is a modular multi-service AI backend built with Python and FastAPI, exposing computer vision (CV), LLM, speech-to-text (STT), and text-to-speech (TTS) capabilities behind a single app, each as its own router.
+
+## Status
+
+The TTS module is the most developed piece: a local PocketTTS pipeline with voice-cloning samples for small/medium/large quality modes, usable via CLI (`speak.py`), as a Python module (`TTS.cli`), or over HTTP. CV, LLM, and STT each have a scaffolded router (`core.py`), but their depth of implementation beyond that hasn't been fully verified. There's no automated test suite yet, so functional correctness of those modules is unconfirmed.
+
+A TTS/PocketTTS rework is currently in progress in the working tree (not part of this commit).
+
 ## Quick Start Commands
 
 Run everything from project root with plain `python`:
@@ -24,11 +32,9 @@ paths = setup_notebook(chdir_to_root=True)
 # Save file: paths.save("Assets/notebooks/my_output.csv")
 ```
 
-## Local TTS -> RVC Pipeline
+## Local PocketTTS Pipeline
 
-This project now supports a CPU-only local speech pipeline for BMO:
-
-`text -> Piper -> wav -> RVC -> wav`
+This project now uses a local PocketTTS speech pipeline for BMO.
 
 The pipeline is available through:
 
@@ -45,50 +51,31 @@ python speak.py input.txt
 python speak.py -s "fast mode"
 python speak.py -m "balanced"
 python speak.py -l "best quality"
+python speak.py --voice 4 "use sample 4"
 ```
 
-### Modes
+### Modes and Voice Samples
 
-- `small`: `pm`, `index_rate=0.5`, `filter_radius=3`, `protect=0.3`
-- `medium`: `harvest`, `index_rate=0.7`, `filter_radius=5`, `protect=0.4`
-- `large`: `rmvpe`, `index_rate=0.8`, `filter_radius=7`, `protect=0.5`
+- `small` -> `TTS/assets/voice/1.wav`
+- `medium` -> `TTS/assets/voice/2.wav`
+- `large` -> `TTS/assets/voice/3.wav`
 
-### Default BMO RVC model paths
-
-- `TTS/weights/BMO.pth`
-- `TTS/weights/added_IVF548_Flat_nprobe_1_BMO_v2.index`
+You can also pick any file from `TTS/assets/voice` with `--voice` (number, stem, or filename).
 
 ## Setup
 
-### WSL development
-
-Use WSL for local development on this Windows machine.
-
 ```bash
-sudo apt update
-sudo apt install -y ffmpeg espeak-ng
-
-conda create -n tts-rvc python=3.10 -y
-conda activate tts-rvc
+conda create -n bmo python=3.11 -y
+conda activate bmo
 
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+python -m pip install "huggingface_hub[cli]"
+huggingface-cli login
 ```
 
-### Raspberry Pi deployment
-
-The deployment target is a headless Raspberry Pi running the FastAPI service locally.
-
-```bash
-sudo apt update
-sudo apt install -y ffmpeg espeak-ng
-
-conda create -n tts-rvc python=3.10 -y
-conda activate tts-rvc
-
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
+PocketTTS clip-based voice cloning requires accepting terms at `https://huggingface.co/kyutai/pocket-tts` and logging in locally (`huggingface-cli login`).
+First run also downloads model weights, so keep internet available once during warmup.
 
 ## Relevant environment variables
 
@@ -96,17 +83,16 @@ Configure these in `.env`:
 
 ```env
 TTS_PROVIDER=local
-TTS_USE_REMOTE=false
+TTS_MODEL_NAME=pocket-tts
+TTS_OUTPUT_FORMAT=wav
 TTS_LOCAL_ENABLED=true
 TTS_LOCAL_DEFAULT_MODE=small
-TTS_LOCAL_PIPER_MODEL=en_US-lessac-medium
-TTS_LOCAL_PIPER_DOWNLOAD_DIR=TTS/assets/piper
-TTS_LOCAL_TMP_DIR=TTS/assets/tmp
 TTS_LOCAL_OUT_DIR=TTS/assets/out
-TTS_LOCAL_KEEP_TMP=false
-TTS_RVC_MODEL_PATH=TTS/weights/BMO.pth
-TTS_RVC_INDEX_PATH=TTS/weights/added_IVF548_Flat_nprobe_1_BMO_v2.index
-TTS_RVC_DEVICE=cpu
+TTS_POCKET_MODEL_CONFIG=b6369a24
+TTS_POCKET_VOICE_DIR=TTS/assets/voice
+TTS_POCKET_CLIP_SMALL_PATH=TTS/assets/voice/1.wav
+TTS_POCKET_CLIP_MEDIUM_PATH=TTS/assets/voice/2.wav
+TTS_POCKET_CLIP_LARGE_PATH=TTS/assets/voice/3.wav
 ```
 
 ## API example
@@ -115,6 +101,6 @@ TTS_RVC_DEVICE=cpu
 {
   "text": "BMO says hello",
   "mode": "medium",
-  "use_remote": false
+  "voice": "4"
 }
 ```
