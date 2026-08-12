@@ -1,82 +1,67 @@
 # TTS
 
-Lightweight local text-to-speech to RVC voice conversion for BMO.
+Local PocketTTS voice synthesis for BMO.
 
 Pipeline:
 
-`text -> Piper -> wav -> RVC -> wav`
-
-using:
-
-`conda activate tts-rvc`
+`text -> PocketTTS(audio-conditioned on clip) -> wav`
 
 This module supports:
 
 - local CLI generation
 - local FastAPI generation through `/api/v1/tts/synthesize`
-- optional remote Groq TTS fallback
 
 ## Files
 
 - `cli.py`: CLI entrypoint logic
 - `core.py`: FastAPI router
-- `local_pipeline.py`: shared local Piper -> RVC pipeline
-- `weights/`: RVC model files
-- `assets/piper/`: downloaded Piper voice files
-- `assets/tmp/`: intermediate wav files
-- `assets/out/`: final generated wav files
+- `local_pipeline.py`: shared PocketTTS pipeline
+- `assets/voice/`: voice sample clips used for conditioning
+- `assets/out/`: generated wav files
 
-## Current model setup
+## Three-clip setup
 
-RVC model files:
+The mode chooses the clip:
 
-- `TTS/weights/BMO.pth`
-- `TTS/weights/added_IVF548_Flat_nprobe_1_BMO_v2.index`
+- `small` -> `TTS/assets/voice/1.wav`
+- `medium` -> `TTS/assets/voice/2.wav`
+- `large` -> `TTS/assets/voice/3.wav`
 
-Default Piper voice:
+You can also pick any clip in `TTS/assets/voice` by passing `--voice` in CLI or `voice` in API.
 
-- `en_US-lessac-medium`
+## Installation
+
+From repo root:
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install "huggingface_hub[cli]"
+huggingface-cli login
+```
+
+For clip-based voice cloning, accept terms at `https://huggingface.co/kyutai/pocket-tts` and login with `huggingface-cli login`.
+PocketTTS downloads model weights on first run.
 
 ## CLI
 
-From the repo root:
-
 ```powershell
 python speak.py "Hello world"
-python speak.py -s "Fast mode"
-python speak.py -m "Balanced mode"
-python speak.py -l "Best quality mode"
+python speak.py -s "Use small clip"
+python speak.py -m "Use medium clip"
+python speak.py -l "Use large clip"
+python speak.py --voice 4 "Use sample 4.wav"
 python speak.py -i
 python speak.py .\my_text.txt
 ```
 
-Interactive mode (`-i`) now plays audio directly from memory and does not save an output file per line.
-
-After activating your environment, use plain `python speak.py ...`.
-
-## Modes
-
-- `-s` / `small`: `pm`
-- `-m` / `medium`: `harvest`
-- `-l` / `large`: `rmvpe`
-
-Current parameter mapping:
-
-- `small`: `index_rate=0.5`, `filter_radius=3`, `protect=0.3`
-- `medium`: `index_rate=0.7`, `filter_radius=5`, `protect=0.4`
-- `large`: `index_rate=0.8`, `filter_radius=7`, `protect=0.5`
+Interactive mode (`-i`) plays audio from memory and does not save per-line files.
 
 ## Output
 
 Final wav files are saved to:
 
 `TTS/assets/out`
-
-Examples:
-
-- `TTS/assets/out/bmo_small.wav`
-- `TTS/assets/out/bmo_medium.wav`
-- `TTS/assets/out/bmo_large.wav`
 
 ## API
 
@@ -90,7 +75,7 @@ Example body:
 {
   "text": "BMO says hello",
   "mode": "large",
-  "use_remote": false
+  "voice": "4"
 }
 ```
 
@@ -99,7 +84,6 @@ Response includes:
 - `file_path`
 - `mode`
 - `pipeline`
-- `used_remote`
 - `voice`
 - `model`
 - `timings_seconds`
@@ -110,24 +94,18 @@ Relevant `.env` values:
 
 ```env
 ASSETS_TTS_DIR=TTS/assets
-TTS_LOCAL_PIPER_DOWNLOAD_DIR=TTS/assets/piper
-TTS_LOCAL_TMP_DIR=TTS/assets/tmp
 TTS_LOCAL_OUT_DIR=TTS/assets/out
 TTS_LOCAL_USE_WARM_ENGINE=true
-TTS_LOCAL_PRIME_ON_PREWARM=true
-TTS_RVC_MODEL_PATH=TTS/weights/BMO.pth
-TTS_RVC_INDEX_PATH=TTS/weights/added_IVF548_Flat_nprobe_1_BMO_v2.index
-TTS_RVC_DEVICE=cpu
-TTS_LOCAL_PIPER_MODEL=en_US-lessac-medium
+TTS_MODEL_NAME=pocket-tts
+TTS_OUTPUT_FORMAT=wav
+TTS_POCKET_MODEL_CONFIG=b6369a24
+TTS_POCKET_TEMPERATURE=0.7
+TTS_POCKET_LSD_DECODE_STEPS=1
+TTS_POCKET_EOS_THRESHOLD=-4.0
+TTS_POCKET_MAX_TOKENS=1200
+TTS_POCKET_FRAMES_AFTER_EOS=4
+TTS_POCKET_VOICE_DIR=TTS/assets/voice
+TTS_POCKET_CLIP_SMALL_PATH=TTS/assets/voice/1.wav
+TTS_POCKET_CLIP_MEDIUM_PATH=TTS/assets/voice/2.wav
+TTS_POCKET_CLIP_LARGE_PATH=TTS/assets/voice/3.wav
 ```
-
-## Notes
-
-- In interactive mode, models are prewarmed to reduce per-line latency.
-- Interactive mode uses a realtime profile (`small` + direct in-memory playback) for maximum speed.
-- Keep `TTS_LOCAL_USE_WARM_ENGINE=true` for fastest repeated usage.
-- On CPU, the first warmup can still be slow; a CUDA-capable GPU is the main way to get near real-time conversion.
-- Piper voice files are downloaded automatically on first use.
-- For long paragraphs, use a `.txt` file instead of inline shell text.
-- If the converted voice sounds weak, the main limitation is usually the source TTS voice, not the RVC wiring.
-- `large` usually gives the best result in this setup.

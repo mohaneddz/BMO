@@ -4,9 +4,7 @@
 fastapi
 uvicorn[standard]
 python-dotenv
-httpx
 python-multipart
-piper-tts
-rvc-python
+pocket-tts==1.1.1
 soundfile
 numpy

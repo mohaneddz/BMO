@@ -120,10 +120,10 @@ class Settings:
             os.getenv("TTS_SYNTHESIZE_ROUTE", "/synthesize"),
             "/synthesize",
         )
-        self.TTS_PROVIDER = os.getenv("TTS_PROVIDER", "groq")
-        self.TTS_MODEL_NAME = os.getenv("TTS_MODEL_NAME", "playai-tts")
-        self.TTS_DEFAULT_VOICE = os.getenv("TTS_DEFAULT_VOICE", "alloy")
-        self.TTS_OUTPUT_FORMAT = os.getenv("TTS_OUTPUT_FORMAT", "mp3")
+        self.TTS_PROVIDER = os.getenv("TTS_PROVIDER", "local")
+        self.TTS_MODEL_NAME = os.getenv("TTS_MODEL_NAME", "pocket-tts")
+        self.TTS_DEFAULT_VOICE = os.getenv("TTS_DEFAULT_VOICE", "clip-small")
+        self.TTS_OUTPUT_FORMAT = os.getenv("TTS_OUTPUT_FORMAT", "wav")
         self.TTS_USE_REMOTE = _get_bool("TTS_USE_REMOTE", False)
         self.TTS_ENDPOINT = os.getenv("TTS_ENDPOINT", "/audio/speech")
         self.TTS_LOCAL_ENABLED = _get_bool("TTS_LOCAL_ENABLED", True)
@@ -136,19 +136,31 @@ class Settings:
             "small",
             {"small", "medium", "large"},
         )
-        self.TTS_LOCAL_PIPER_MODEL = os.getenv("TTS_LOCAL_PIPER_MODEL", "en_US-lessac-medium")
-        self.TTS_LOCAL_PIPER_DOWNLOAD_DIR = _get_path("TTS_LOCAL_PIPER_DOWNLOAD_DIR", "TTS/assets/piper")
-        self.TTS_LOCAL_TMP_DIR = _get_path("TTS_LOCAL_TMP_DIR", "TTS/assets/tmp")
         self.TTS_LOCAL_OUT_DIR = _get_path("TTS_LOCAL_OUT_DIR", "TTS/assets/out")
-        self.TTS_LOCAL_KEEP_TMP = _get_bool("TTS_LOCAL_KEEP_TMP", False)
         self.TTS_LOCAL_USE_WARM_ENGINE = _get_bool("TTS_LOCAL_USE_WARM_ENGINE", True)
-        self.TTS_LOCAL_PRIME_ON_PREWARM = _get_bool("TTS_LOCAL_PRIME_ON_PREWARM", True)
-        self.TTS_RVC_MODEL_PATH = _get_path("TTS_RVC_MODEL_PATH", "TTS/weights/BMO.pth")
-        self.TTS_RVC_INDEX_PATH = _get_path(
-            "TTS_RVC_INDEX_PATH",
-            "TTS/weights/added_IVF548_Flat_nprobe_1_BMO_v2.index",
+        self.TTS_POCKET_MODEL_CONFIG = os.getenv("TTS_POCKET_MODEL_CONFIG", "b6369a24")
+        self.TTS_POCKET_TEMPERATURE = _get_float("TTS_POCKET_TEMPERATURE", 0.7)
+        self.TTS_POCKET_LSD_DECODE_STEPS = _get_int("TTS_POCKET_LSD_DECODE_STEPS", 1)
+        self.TTS_POCKET_NOISE_CLAMP = (
+            _get_float("TTS_POCKET_NOISE_CLAMP", 0.0) if os.getenv("TTS_POCKET_NOISE_CLAMP") is not None else None
         )
-        self.TTS_RVC_DEVICE = os.getenv("TTS_RVC_DEVICE", "cpu")
+        self.TTS_POCKET_EOS_THRESHOLD = _get_float("TTS_POCKET_EOS_THRESHOLD", -4.0)
+        self.TTS_POCKET_MAX_TOKENS = _get_int("TTS_POCKET_MAX_TOKENS", 1200)
+        self.TTS_POCKET_MIN_TOKENS = _get_int("TTS_POCKET_MIN_TOKENS", 120)
+        self.TTS_POCKET_DYNAMIC_MAX_TOKENS = _get_bool("TTS_POCKET_DYNAMIC_MAX_TOKENS", True)
+        self.TTS_POCKET_TOKENS_PER_CHAR = _get_float("TTS_POCKET_TOKENS_PER_CHAR", 4.0)
+        self.TTS_POCKET_FRAMES_AFTER_EOS = _get_int("TTS_POCKET_FRAMES_AFTER_EOS", 4)
+        self.TTS_POCKET_TORCH_THREADS = _get_int(
+            "TTS_POCKET_TORCH_THREADS",
+            max(1, (os.cpu_count() or 4) // 2),
+        )
+        self.TTS_POCKET_VOICE_DIR = _get_path("TTS_POCKET_VOICE_DIR", "TTS/assets/voice")
+        self.TTS_POCKET_CLIP_SMALL_PATH = _get_path("TTS_POCKET_CLIP_SMALL_PATH", "TTS/assets/voice/1.wav")
+        self.TTS_POCKET_CLIP_MEDIUM_PATH = _get_path(
+            "TTS_POCKET_CLIP_MEDIUM_PATH",
+            "TTS/assets/voice/2.wav",
+        )
+        self.TTS_POCKET_CLIP_LARGE_PATH = _get_path("TTS_POCKET_CLIP_LARGE_PATH", "TTS/assets/voice/3.wav")
 
         self.GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
         self.GROQ_BASE_URL = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1").rstrip("/")
@@ -162,9 +174,11 @@ class Settings:
             self.ASSETS_CV_DIR,
             self.ASSETS_TTS_DIR,
             self.ASSETS_LLM_DIR,
-            self.TTS_LOCAL_PIPER_DOWNLOAD_DIR,
-            self.TTS_LOCAL_TMP_DIR,
             self.TTS_LOCAL_OUT_DIR,
+            self.TTS_POCKET_VOICE_DIR,
+            self.TTS_POCKET_CLIP_SMALL_PATH.parent,
+            self.TTS_POCKET_CLIP_MEDIUM_PATH.parent,
+            self.TTS_POCKET_CLIP_LARGE_PATH.parent,
         ):
             path.mkdir(parents=True, exist_ok=True)
 

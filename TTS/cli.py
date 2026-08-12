@@ -21,7 +21,7 @@ from TTS.local_pipeline import (
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the local BMO TTS -> RVC pipeline.")
+    parser = argparse.ArgumentParser(description="Run the local BMO PocketTTS pipeline.")
     parser.add_argument("text", nargs="?", help="Inline text or a path to a UTF-8 text file.")
     mode_group = parser.add_mutually_exclusive_group()
     mode_group.add_argument("-s", "--small", action="store_true", help="Fastest mode.")
@@ -37,6 +37,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-play",
         action="store_true",
         help="Generate files only; do not play audio in local speakers.",
+    )
+    parser.add_argument(
+        "--voice",
+        type=str,
+        default=None,
+        help="Voice sample selector from TTS/assets/voice (e.g. 1, 2, 3, or filename).",
     )
     return parser
 
@@ -91,16 +97,16 @@ def _play_wav_bytes(wav_bytes: bytes) -> None:
 def _print_timings(timings: dict[str, float] | None) -> None:
     if not timings:
         return
-    piper_s = timings.get("piper_s", 0.0)
-    rvc_s = timings.get("rvc_s", 0.0)
+    prep_s = timings.get("state_prepare_s", 0.0)
+    infer_s = timings.get("inference_s", 0.0)
     total_s = timings.get("total_s", 0.0)
-    print(f"Timing -> total={total_s:.2f}s piper={piper_s:.2f}s rvc={rvc_s:.2f}s")
+    print(f"Timing -> total={total_s:.2f}s prep={prep_s:.2f}s infer={infer_s:.2f}s")
 
 
-def _run_once(text: str, mode: str | None, play_audio: bool, direct_playback: bool) -> None:
+def _run_once(text: str, mode: str | None, voice: str | None, play_audio: bool, direct_playback: bool) -> None:
     if direct_playback:
         with _suppress_library_output():
-            playback = run_local_tts_playback(text=text, mode=mode, realtime=True)
+            playback = run_local_tts_playback(text=text, mode=mode, voice=voice, realtime=True)
         print(f"Done -> direct playback (mode={playback.mode}, pipeline={playback.pipeline})")
         _print_timings(playback.timings_seconds)
         if play_audio:
@@ -108,19 +114,19 @@ def _run_once(text: str, mode: str | None, play_audio: bool, direct_playback: bo
         return
 
     with _suppress_library_output():
-        result = run_local_tts_pipeline(text=text, mode=mode)
+        result = run_local_tts_pipeline(text=text, mode=mode, voice=voice)
     print(f"Done -> {result.output_wav_path} (mode={result.mode})")
     _print_timings(result.timings_seconds)
     if play_audio:
         _play_wav(result.output_wav_path)
 
 
-def _interactive_loop(mode: str | None, play_audio: bool) -> int:
+def _interactive_loop(mode: str | None, voice: str | None, play_audio: bool) -> int:
     with _suppress_library_output():
         warm_seconds = prewarm_local_tts_engine()
     print(f"Models warmed in {warm_seconds:.2f}s.")
     print("Interactive mode started. Type text and press Enter.")
-    print("Audio is played directly in memory (no output file is saved).")
+    print("Audio is played directly from memory using PocketTTS (no output file is saved).")
     print("Commands: /exit, /quit")
     while True:
         try:
@@ -136,7 +142,7 @@ def _interactive_loop(mode: str | None, play_audio: bool) -> int:
             print("Exiting interactive mode.")
             return 0
 
-        _run_once(text=text, mode=mode, play_audio=play_audio, direct_playback=True)
+        _run_once(text=text, mode=mode, voice=voice, play_audio=play_audio, direct_playback=True)
 
 
 def main() -> int:
@@ -145,12 +151,13 @@ def main() -> int:
     args = parser.parse_args()
     mode = _resolve_mode(args)
     play_audio = not args.no_play
+    voice = args.voice
 
     if args.interactive:
-        return _interactive_loop(mode=mode, play_audio=play_audio)
+        return _interactive_loop(mode=mode, voice=voice, play_audio=play_audio)
 
     text = load_text_source(args.text)
-    _run_once(text=text, mode=mode, play_audio=play_audio, direct_playback=False)
+    _run_once(text=text, mode=mode, voice=voice, play_audio=play_audio, direct_playback=False)
     return 0
 
 
