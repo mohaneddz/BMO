@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="BMO mark">
+  <rect x="10" y="10" width="108" height="108" rx="24" fill="#62d5c5"/>
+  <rect x="24" y="25" width="80" height="54" rx="10" fill="#113f4a"/>
+  <circle cx="47" cy="52" r="7" fill="#f7fbfb"/>
+  <circle cx="81" cy="52" r="7" fill="#f7fbfb"/>
+  <path d="M45 66c12 9 26 9 38 0" fill="none" stroke="#f7fbfb" stroke-linecap="round" stroke-width="5"/>
+  <circle cx="42" cy="95" r="7" fill="#ef5a69"/>
+  <circle cx="61" cy="95" r="7" fill="#f7c948"/>
+  <path d="M81 88v14M74 95h14" stroke="#174855" stroke-linecap="round" stroke-width="5"/>
+</svg>
