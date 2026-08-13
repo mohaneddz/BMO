@@ -1,5 +1,7 @@
 # BMO
 
+![BMO](screenshots/cover.avif)
+
 BMO is a modular multi-service AI backend built with Python and FastAPI, exposing computer vision (CV), LLM, speech-to-text (STT), and text-to-speech (TTS) capabilities behind a single app, each as its own router.
 
 ## Status
