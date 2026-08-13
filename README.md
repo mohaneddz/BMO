@@ -1,8 +1,19 @@
-# BMO
+<h1>
+  <img src="docs/assets/bmo-mark.svg" alt="BMO icon" width="42" />
+  BMO
+</h1>
 
 ![BMO](screenshots/cover.avif)
 
 BMO is a modular multi-service AI backend built with Python and FastAPI, exposing computer vision (CV), LLM, speech-to-text (STT), and text-to-speech (TTS) capabilities behind a single app, each as its own router.
+
+## Local AI BMO inspiration
+
+<a href="https://www.youtube.com/watch?v=l5ggH-YhuAw">
+  <img src="https://i.ytimg.com/vi/l5ggH-YhuAw/maxresdefault.jpg" alt="Building a Real BMO — Embodied Local AI Agent video cover" width="720" />
+</a>
+
+This project shares the same local-AI spirit as [Building a Real BMO — Embodied Local AI Agent](https://www.youtube.com/watch?v=l5ggH-YhuAw): a Raspberry Pi-powered, voice-enabled BMO using local models. The cover above links directly to the build video.
 
 ## Status
 
