@@ -10,3 +10,4 @@ pocket-tts==1.1.1
 soundfile
 numpy
 faster-whisper
+ultralytics

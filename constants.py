@@ -100,8 +100,8 @@ class Settings:
         self.CV_CONFIG_ROUTE = _normalize_route_prefix(os.getenv("CV_CONFIG_ROUTE", "/config"), "/config")
         self.CV_ANALYZE_ROUTE = _normalize_route_prefix(os.getenv("CV_ANALYZE_ROUTE", "/analyze"), "/analyze")
         self.CV_PROVIDER = os.getenv("CV_PROVIDER", "local")
-        self.CV_MODEL_NAME = os.getenv("CV_MODEL_NAME", "yolov8n")
-        self.CV_DEFAULT_TASK = os.getenv("CV_DEFAULT_TASK", "describe")
+        self.CV_MODEL_NAME = os.getenv("CV_MODEL_NAME", "yolo26n")
+        self.CV_WEIGHTS_DIR = _get_path("CV_WEIGHTS_DIR", "CV/weights")
         self.CV_CONFIDENCE_THRESHOLD = _get_float("CV_CONFIDENCE_THRESHOLD", 0.35)
 
         self.LLM_ROUTE_PREFIX = _normalize_route_prefix(os.getenv("LLM_ROUTE_PREFIX", "/llm"), "/llm")
