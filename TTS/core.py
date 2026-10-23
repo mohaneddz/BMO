@@ -2,13 +2,23 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from constants import settings
-from TTS.local_pipeline import MODE_SETTINGS, LocalTTSPipelineError, run_local_tts_pipeline
+from TTS.local_pipeline import (
+    MODE_SETTINGS,
+    LocalTTSInputError,
+    LocalTTSPipelineError,
+    list_voice_samples,
+    run_local_tts_pipeline,
+)
 
 
 router = APIRouter(prefix=settings.TTS_ROUTE_PREFIX, tags=["TTS"])
+
+TTS_FILES_ROUTE = "/files"
 
 
 class TTSSynthesizeRequest(BaseModel):
@@ -27,6 +37,7 @@ class TTSSynthesizeResponse(BaseModel):
     mode: str | None
     pipeline: str | None
     file_path: str
+    file_url: str
     timestamp_utc: str
     timings_seconds: dict[str, float] | None = None
 
@@ -41,7 +52,6 @@ async def config() -> dict:
     return {
         "provider": settings.TTS_PROVIDER,
         "model": settings.TTS_MODEL_NAME,
-        "default_voice": settings.TTS_DEFAULT_VOICE,
         "default_format": settings.TTS_OUTPUT_FORMAT,
         "route_prefix": settings.TTS_ROUTE_PREFIX,
         "local_enabled": settings.TTS_LOCAL_ENABLED,
@@ -60,6 +70,7 @@ async def config() -> dict:
             "large": str(settings.TTS_POCKET_CLIP_LARGE_PATH),
         },
         "pocket_voice_dir": str(settings.TTS_POCKET_VOICE_DIR),
+        "voice_samples": [path.name for path in list_voice_samples()],
         "local_modes": MODE_SETTINGS,
     }
 
@@ -69,26 +80,38 @@ async def synthesize(req: TTSSynthesizeRequest) -> TTSSynthesizeResponse:
     if not req.text.strip():
         raise HTTPException(status_code=422, detail="Text input cannot be empty or whitespace only.")
 
-    voice = req.voice or settings.TTS_DEFAULT_VOICE
     output_format = (req.output_format or settings.TTS_OUTPUT_FORMAT).lower()
     if output_format != "wav":
         raise HTTPException(status_code=422, detail="PocketTTS setup only supports wav output format.")
     timestamp_utc = datetime.now(timezone.utc).isoformat()
 
     try:
-        result = run_local_tts_pipeline(text=req.text.strip(), mode=req.mode, voice=req.voice)
+        result = await run_in_threadpool(run_local_tts_pipeline, req.text.strip(), req.mode, req.voice)
+    except LocalTTSInputError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except LocalTTSPipelineError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    file_url = f"{settings.API_PREFIX}{settings.TTS_ROUTE_PREFIX}{TTS_FILES_ROUTE}/{result.output_wav_path.name}"
     return TTSSynthesizeResponse(
         provider="local",
         model=result.model_name,
-        voice=voice,
+        voice=result.clip_path.name,
         output_format=result.output_format,
         used_remote=False,
         mode=result.mode,
         pipeline=result.pipeline,
         file_path=str(result.output_wav_path),
+        file_url=file_url,
         timestamp_utc=timestamp_utc,
         timings_seconds=result.timings_seconds,
     )
+
+
+@router.get(TTS_FILES_ROUTE + "/{file_name}")
+async def download(file_name: str) -> FileResponse:
+    out_dir = settings.TTS_LOCAL_OUT_DIR.resolve()
+    path = (out_dir / file_name).resolve()
+    if path.parent != out_dir or path.suffix != ".wav" or not path.is_file():
+        raise HTTPException(status_code=404, detail=f"No generated wav named '{file_name}'.")
+    return FileResponse(path, media_type="audio/wav", filename=path.name)

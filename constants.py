@@ -124,7 +124,6 @@ class Settings:
         )
         self.TTS_PROVIDER = os.getenv("TTS_PROVIDER", "local")
         self.TTS_MODEL_NAME = os.getenv("TTS_MODEL_NAME", "pocket-tts")
-        self.TTS_DEFAULT_VOICE = os.getenv("TTS_DEFAULT_VOICE", "clip-small")
         self.TTS_OUTPUT_FORMAT = os.getenv("TTS_OUTPUT_FORMAT", "wav")
         self.TTS_USE_REMOTE = _get_bool("TTS_USE_REMOTE", False)
         self.TTS_ENDPOINT = os.getenv("TTS_ENDPOINT", "/audio/speech")

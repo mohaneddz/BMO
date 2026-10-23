@@ -29,6 +29,10 @@ class LocalTTSPipelineError(RuntimeError):
     pass
 
 
+class LocalTTSInputError(LocalTTSPipelineError):
+    pass
+
+
 @dataclass(slots=True)
 class LocalTTSPipelineResult:
     text: str
@@ -64,18 +68,30 @@ def list_voice_samples() -> list[Path]:
 class _WarmLocalTTSEngine:
     def __init__(self) -> None:
         load_started = time.perf_counter()
-        import torch
-        from pocket_tts import TTSModel
+        try:
+            import torch
+            from pocket_tts import TTSModel
+        except ImportError as exc:
+            raise LocalTTSPipelineError(
+                "TTS needs pocket-tts and torch. Install them with `pip install -r requirements.txt`."
+            ) from exc
 
         torch.set_num_threads(settings.TTS_POCKET_TORCH_THREADS)
         self._lock = threading.Lock()
-        self.model = TTSModel.load_model(
-            config=settings.TTS_POCKET_MODEL_CONFIG,
-            temp=settings.TTS_POCKET_TEMPERATURE,
-            lsd_decode_steps=settings.TTS_POCKET_LSD_DECODE_STEPS,
-            noise_clamp=settings.TTS_POCKET_NOISE_CLAMP,
-            eos_threshold=settings.TTS_POCKET_EOS_THRESHOLD,
-        )
+        try:
+            self.model = TTSModel.load_model(
+                config=settings.TTS_POCKET_MODEL_CONFIG,
+                temp=settings.TTS_POCKET_TEMPERATURE,
+                lsd_decode_steps=settings.TTS_POCKET_LSD_DECODE_STEPS,
+                noise_clamp=settings.TTS_POCKET_NOISE_CLAMP,
+                eos_threshold=settings.TTS_POCKET_EOS_THRESHOLD,
+            )
+        except Exception as exc:
+            raise LocalTTSPipelineError(
+                f"Could not load PocketTTS model config '{settings.TTS_POCKET_MODEL_CONFIG}'. "
+                "The first run downloads the weights from https://huggingface.co/kyutai/pocket-tts, "
+                f"which needs internet access and `hf auth login`. Cause: {exc}"
+            ) from exc
         self.sample_rate = int(self.model.sample_rate)
         self.states: dict[str, dict] = {}
         self.load_seconds = time.perf_counter() - load_started
@@ -146,7 +162,7 @@ _ENGINE: _WarmLocalTTSEngine | None = None
 def resolve_mode(mode: str | None) -> PipelineMode:
     resolved = (mode or settings.TTS_LOCAL_DEFAULT_MODE).strip().lower()
     if resolved not in MODE_SETTINGS:
-        raise LocalTTSPipelineError(
+        raise LocalTTSInputError(
             f"Invalid TTS mode '{resolved}'. Expected one of: {', '.join(MODE_SETTINGS)}."
         )
     return resolved  # type: ignore[return-value]
@@ -199,7 +215,7 @@ def get_clip_path_for_mode(mode: PipelineMode, voice: str | None = None) -> Path
     if voice:
         matched = _find_voice_sample_by_label(voice)
         if matched is None:
-            raise LocalTTSPipelineError(
+            raise LocalTTSInputError(
                 f"Voice sample '{voice}' was not found in {settings.TTS_POCKET_VOICE_DIR}. "
                 "Use a wav filename, stem, or number (for example: 1, 2, 3)."
             )
@@ -214,7 +230,8 @@ def get_clip_path_for_mode(mode: PipelineMode, voice: str | None = None) -> Path
     if not clip_path.exists():
         raise LocalTTSPipelineError(
             f"PocketTTS clip file not found for mode '{mode}': {clip_path}. "
-            "Place the three clip wav files under TTS/assets/clips and set .env paths if different."
+            "The clips ship in TTS/assets/voice; restore them with `git checkout -- TTS/assets/voice` "
+            "or point TTS_POCKET_CLIP_*_PATH in .env at your own wav files."
         )
     return clip_path
 
