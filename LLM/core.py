@@ -11,13 +11,15 @@ from constants import settings
 
 router = APIRouter(prefix=settings.LLM_ROUTE_PREFIX, tags=["LLM"])
 
+# In-memory chat history per conversation_id; cleared on server restart.
+_CONVERSATIONS: dict[str, list[dict[str, str]]] = {}
+
 
 class LLMChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     system_prompt: str | None = "You are BMO from Adventure Time. Keep responses concise and playful."
     temperature: float | None = None
     max_tokens: int | None = None
-    use_remote: bool | None = None
     conversation_id: str | None = None
 
 
@@ -26,14 +28,9 @@ class LLMChatResponse(BaseModel):
     model: str
     reply: str
     conversation_id: str
-    used_remote: bool
-    placeholder: bool
+    turns: int
     saved_to: str
     usage: dict | None = None
-
-
-def _conversation_id(value: str | None) -> str:
-    return value or uuid4().hex
 
 
 def _persist_chat(conversation_id: str, payload: dict) -> str:
@@ -42,18 +39,24 @@ def _persist_chat(conversation_id: str, payload: dict) -> str:
     return str(out_file)
 
 
-async def _remote_groq_chat(req: LLMChatRequest) -> tuple[str, dict | None]:
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="GROQ_API_KEY is missing.")
-
-    endpoint = f"{settings.GROQ_BASE_URL}{settings.LLM_ENDPOINT}"
-    headers = {"Authorization": f"Bearer {settings.GROQ_API_KEY}"}
-
+def _build_messages(req: LLMChatRequest, history: list[dict[str, str]]) -> list[dict[str, str]]:
     messages: list[dict[str, str]] = []
     if req.system_prompt:
         messages.append({"role": "system", "content": req.system_prompt})
+    messages.extend(history[-settings.LLM_HISTORY_MESSAGES :])
     messages.append({"role": "user", "content": req.message})
+    return messages
 
+
+async def _groq_chat(req: LLMChatRequest, messages: list[dict[str, str]]) -> tuple[str, dict | None]:
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="LLM is not configured: set GROQ_API_KEY in .env (create a key at https://console.groq.com/keys).",
+        )
+
+    endpoint = f"{settings.GROQ_BASE_URL}{settings.LLM_ENDPOINT}"
+    headers = {"Authorization": f"Bearer {settings.GROQ_API_KEY}"}
     body = {
         "model": settings.LLM_MODEL_NAME,
         "messages": messages,
@@ -61,31 +64,34 @@ async def _remote_groq_chat(req: LLMChatRequest) -> tuple[str, dict | None]:
         "max_tokens": req.max_tokens if req.max_tokens is not None else settings.LLM_MAX_TOKENS,
     }
 
-    async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
-        response = await client.post(endpoint, headers=headers, json=body)
+    try:
+        async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
+            response = await client.post(endpoint, headers=headers, json=body)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach {endpoint}: {exc}") from exc
 
     if response.status_code >= 400:
         raise HTTPException(
             status_code=502,
-            detail=f"GROQ LLM request failed ({response.status_code}): {response.text}",
+            detail=f"Groq LLM request failed ({response.status_code}): {response.text}",
         )
 
     data = response.json()
-    reply = data["choices"][0]["message"]["content"]
-    usage = data.get("usage")
-    return reply, usage
-
-
-def _placeholder_reply(message: str) -> str:
-    return (
-        "BMO says: I am in starter mode and ready to help. "
-        f"Your message was: '{message[:120]}'."
-    )
+    try:
+        reply = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail=f"Unexpected Groq response shape: {data}") from exc
+    return reply, data.get("usage")
 
 
 @router.get(settings.LLM_HEALTH_ROUTE)
 async def health() -> dict:
-    return {"status": "ok", "module": "llm", "provider": settings.LLM_PROVIDER}
+    return {
+        "status": "ok",
+        "module": "llm",
+        "provider": settings.LLM_PROVIDER,
+        "api_key_configured": bool(settings.GROQ_API_KEY),
+    }
 
 
 @router.get(settings.LLM_CONFIG_ROUTE)
@@ -93,38 +99,34 @@ async def config() -> dict:
     return {
         "provider": settings.LLM_PROVIDER,
         "model": settings.LLM_MODEL_NAME,
-        "use_remote": settings.LLM_USE_REMOTE,
-        "route_prefix": settings.LLM_ROUTE_PREFIX,
+        "base_url": settings.GROQ_BASE_URL,
         "endpoint": settings.LLM_ENDPOINT,
+        "history_messages": settings.LLM_HISTORY_MESSAGES,
+        "route_prefix": settings.LLM_ROUTE_PREFIX,
     }
 
 
 @router.post(settings.LLM_CHAT_ROUTE, response_model=LLMChatResponse)
 async def chat(req: LLMChatRequest) -> LLMChatResponse:
-    use_remote = req.use_remote if req.use_remote is not None else settings.LLM_USE_REMOTE
-    convo_id = _conversation_id(req.conversation_id)
-    now = datetime.now(timezone.utc).isoformat()
+    convo_id = req.conversation_id or uuid4().hex
+    history = _CONVERSATIONS.get(convo_id, [])
+    messages = _build_messages(req, history)
 
-    if use_remote:
-        reply, usage = await _remote_groq_chat(req)
-        placeholder = False
-    else:
-        reply = _placeholder_reply(req.message)
-        usage = None
-        placeholder = True
+    reply, usage = await _groq_chat(req, messages)
+
+    history = [*history, {"role": "user", "content": req.message}, {"role": "assistant", "content": reply}]
+    _CONVERSATIONS[convo_id] = history
 
     persisted = _persist_chat(
         convo_id,
         {
-            "timestamp": now,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "provider": settings.LLM_PROVIDER,
             "model": settings.LLM_MODEL_NAME,
             "conversation_id": convo_id,
             "request": req.model_dump(),
             "reply": reply,
             "usage": usage,
-            "used_remote": use_remote,
-            "placeholder": placeholder,
         },
     )
 
@@ -133,8 +135,7 @@ async def chat(req: LLMChatRequest) -> LLMChatResponse:
         model=settings.LLM_MODEL_NAME,
         reply=reply,
         conversation_id=convo_id,
-        used_remote=use_remote,
-        placeholder=placeholder,
+        turns=len(history) // 2,
         saved_to=persisted,
         usage=usage,
     )

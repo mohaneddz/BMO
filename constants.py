@@ -112,7 +112,7 @@ class Settings:
         self.LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-versatile")
         self.LLM_TEMPERATURE = _get_float("LLM_TEMPERATURE", 0.7)
         self.LLM_MAX_TOKENS = _get_int("LLM_MAX_TOKENS", 512)
-        self.LLM_USE_REMOTE = _get_bool("LLM_USE_REMOTE", False)
+        self.LLM_HISTORY_MESSAGES = _get_int("LLM_HISTORY_MESSAGES", 20)
         self.LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "/chat/completions")
 
         self.TTS_ROUTE_PREFIX = _normalize_route_prefix(os.getenv("TTS_ROUTE_PREFIX", "/tts"), "/tts")
