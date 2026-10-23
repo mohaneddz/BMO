@@ -32,3 +32,9 @@ TTS/weights/
 *.bin
 *.ckpt
 *.safetensors
+
+# Runtime uploads, chat logs and downloaded CV weights
+STT/assets/
+CV/assets/
+CV/weights/
+LLM/assets/
