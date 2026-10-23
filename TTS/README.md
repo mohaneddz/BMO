@@ -34,14 +34,12 @@ You can also pick any clip in `TTS/assets/voice` by passing `--voice` in CLI or 
 From repo root:
 
 ```powershell
-python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
-python -m pip install "huggingface_hub[cli]"
-huggingface-cli login
+hf auth login
 ```
 
-For clip-based voice cloning, accept terms at `https://huggingface.co/kyutai/pocket-tts` and login with `huggingface-cli login`.
-PocketTTS downloads model weights on first run.
+For clip-based voice cloning, accept terms at `https://huggingface.co/kyutai/pocket-tts` and log in with `hf auth login` (the `hf` CLI is installed with the requirements).
+PocketTTS downloads its weights (~225 MB) on first run.
 
 ## CLI
 
@@ -81,12 +79,15 @@ Example body:
 
 Response includes:
 
-- `file_path`
+- `file_path`: where the wav was written on the server
+- `file_url`: `GET` this to download the wav (`/api/v1/tts/files/<name>.wav`)
 - `mode`
 - `pipeline`
-- `voice`
+- `voice`: the clip file that conditioned the voice
 - `model`
 - `timings_seconds`
+
+Errors: an unknown `voice` or `mode` returns `422`. A model that can't be loaded (gated repo not accepted, no login, no internet on first run) returns `503` with the cause.
 
 ## Environment
 

@@ -88,7 +88,9 @@ class Settings:
             "/transcribe",
         )
         self.STT_PROVIDER = os.getenv("STT_PROVIDER", "local")
-        self.STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "faster-whisper")
+        self.STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "base")
+        self.STT_DEVICE = os.getenv("STT_DEVICE", "cpu")
+        self.STT_COMPUTE_TYPE = os.getenv("STT_COMPUTE_TYPE", "int8")
         self.STT_DEFAULT_LANGUAGE = os.getenv("STT_DEFAULT_LANGUAGE", "en")
         self.STT_BEAM_SIZE = _get_int("STT_BEAM_SIZE", 5)
         self.STT_TEMPERATURE = _get_float("STT_TEMPERATURE", 0.0)
@@ -98,8 +100,8 @@ class Settings:
         self.CV_CONFIG_ROUTE = _normalize_route_prefix(os.getenv("CV_CONFIG_ROUTE", "/config"), "/config")
         self.CV_ANALYZE_ROUTE = _normalize_route_prefix(os.getenv("CV_ANALYZE_ROUTE", "/analyze"), "/analyze")
         self.CV_PROVIDER = os.getenv("CV_PROVIDER", "local")
-        self.CV_MODEL_NAME = os.getenv("CV_MODEL_NAME", "yolov8n")
-        self.CV_DEFAULT_TASK = os.getenv("CV_DEFAULT_TASK", "describe")
+        self.CV_MODEL_NAME = os.getenv("CV_MODEL_NAME", "yolo26n")
+        self.CV_WEIGHTS_DIR = _get_path("CV_WEIGHTS_DIR", "CV/weights")
         self.CV_CONFIDENCE_THRESHOLD = _get_float("CV_CONFIDENCE_THRESHOLD", 0.35)
 
         self.LLM_ROUTE_PREFIX = _normalize_route_prefix(os.getenv("LLM_ROUTE_PREFIX", "/llm"), "/llm")
@@ -110,7 +112,7 @@ class Settings:
         self.LLM_MODEL_NAME = os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-versatile")
         self.LLM_TEMPERATURE = _get_float("LLM_TEMPERATURE", 0.7)
         self.LLM_MAX_TOKENS = _get_int("LLM_MAX_TOKENS", 512)
-        self.LLM_USE_REMOTE = _get_bool("LLM_USE_REMOTE", False)
+        self.LLM_HISTORY_MESSAGES = _get_int("LLM_HISTORY_MESSAGES", 20)
         self.LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "/chat/completions")
 
         self.TTS_ROUTE_PREFIX = _normalize_route_prefix(os.getenv("TTS_ROUTE_PREFIX", "/tts"), "/tts")
@@ -122,7 +124,6 @@ class Settings:
         )
         self.TTS_PROVIDER = os.getenv("TTS_PROVIDER", "local")
         self.TTS_MODEL_NAME = os.getenv("TTS_MODEL_NAME", "pocket-tts")
-        self.TTS_DEFAULT_VOICE = os.getenv("TTS_DEFAULT_VOICE", "clip-small")
         self.TTS_OUTPUT_FORMAT = os.getenv("TTS_OUTPUT_FORMAT", "wav")
         self.TTS_USE_REMOTE = _get_bool("TTS_USE_REMOTE", False)
         self.TTS_ENDPOINT = os.getenv("TTS_ENDPOINT", "/audio/speech")
