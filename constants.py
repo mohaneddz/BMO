@@ -88,7 +88,9 @@ class Settings:
             "/transcribe",
         )
         self.STT_PROVIDER = os.getenv("STT_PROVIDER", "local")
-        self.STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "faster-whisper")
+        self.STT_MODEL_NAME = os.getenv("STT_MODEL_NAME", "base")
+        self.STT_DEVICE = os.getenv("STT_DEVICE", "cpu")
+        self.STT_COMPUTE_TYPE = os.getenv("STT_COMPUTE_TYPE", "int8")
         self.STT_DEFAULT_LANGUAGE = os.getenv("STT_DEFAULT_LANGUAGE", "en")
         self.STT_BEAM_SIZE = _get_int("STT_BEAM_SIZE", 5)
         self.STT_TEMPERATURE = _get_float("STT_TEMPERATURE", 0.0)
